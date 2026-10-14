@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Net One Tap Research</title>
+<meta name="description" content="How to reset a stuck mobile connection on Android without airplane mode, and how to show 5G NR state per SIM.">
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1b1f24;
+    --muted: #57606a;
+    --line: #d8dee4;
+    --card: #f6f8fa;
+    --accent: #1565c0;
+    --good: #1a7f37;
+    --bad: #cf222e;
+    --code-bg: #eff1f3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d1117;
+      --fg: #e6edf3;
+      --muted: #9198a1;
+      --line: #30363d;
+      --card: #161b22;
+      --accent: #58a6ff;
+      --good: #3fb950;
+      --bad: #f85149;
+      --code-bg: #1f242c;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1117;
+    --fg: #e6edf3;
+    --muted: #9198a1;
+    --line: #30363d;
+    --card: #161b22;
+    --accent: #58a6ff;
+    --good: #3fb950;
+    --bad: #f85149;
+    --code-bg: #1f242c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 780px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 8px; }
+  h2 { font-size: 1.35rem; margin: 40px 0 12px; padding-top: 8px; border-top: 1px solid var(--line); }
+  h3 { font-size: 1.05rem; margin: 24px 0 8px; }
+  p, li { color: var(--fg); }
+  .lead { color: var(--muted); font-size: 1.05rem; margin: 0 0 16px; }
+  a { color: var(--accent); }
+  code {
+    font: 0.88em ui-monospace, SFMono-Regular, Consolas, monospace;
+    background: var(--code-bg);
+    padding: 1px 5px;
+    border-radius: 4px;
+    word-break: break-word;
+  }
+  pre {
+    background: var(--code-bg);
+    padding: 12px 14px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font: 0.85em/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
+  }
+  pre code { background: none; padding: 0; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin: 16px 0;
+  }
+  .table-wrap { overflow-x: auto; margin: 12px 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.93rem; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--card); }
+  .yes { color: var(--good); font-weight: 600; }
+  .no { color: var(--bad); font-weight: 600; }
+  nav ol { padding-left: 20px; margin: 8px 0 0; }
+  footer { margin-top: 48px; color: var(--muted); font-size: 0.9rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Net One Tap — research</h1>
+  <p class="lead">A small Kotlin Android app with two jobs: (1) one tap resets a stuck mobile connection, the way airplane mode does, but without airplane mode or the mobile data switch; (2) a notification that says <strong>“SIM n: 5G Unlimited activated”</strong> when that SIM is on high-band 5G.</p>
+  <p>Code: <a href="https://github.com/R-Dilipkumar/Network_One_Tap">github.com/R-Dilipkumar/Network_One_Tap</a></p>
+
+  <div class="card">
+    <strong>Short answer.</strong> A normal app is not allowed to restart the phone's cellular radio. The <em>shell</em> user (what ADB runs as) is. So the app uses <strong>Shizuku</strong> (shell rights, no root) or <strong>root</strong> to turn the cellular radio off and back on for each SIM. Wi‑Fi and Bluetooth stay on. With neither, it can only do a weak “soft refresh”.
+  </div>
+
+  <nav>
+    <strong>Contents</strong>
+    <ol>
+      <li><a href="#why">Why airplane mode makes the internet fast again</a></li>
+      <li><a href="#rights">What Android lets an app do</a></li>
+      <li><a href="#reset">How the one-tap reset works</a></li>
+      <li><a href="#versions">What runs on which Android version</a></li>
+      <li><a href="#fiveg">The 5G Unlimited notification</a></li>
+      <li><a href="#setup">Setup</a></li>
+      <li><a href="#safety">Safety and limits</a></li>
+      <li><a href="#sources">Sources</a></li>
+    </ol>
+  </nav>
+
+  <h2 id="why">1. Why airplane mode makes the internet fast again</h2>
+  <p>Turning airplane mode on and off makes the modem fully leave the mobile network and join again. On the way back it:</p>
+  <ul>
+    <li>picks the best tower and band again, instead of staying stuck on a busy or weak one;</li>
+    <li>opens a fresh data session (often a new IP address and a new route through the carrier);</li>
+    <li>re-adds the 5G part of the link (in NSA 5G, the 5G carrier rides on top of a 4G anchor and can get stuck “off”).</li>
+  </ul>
+  <p>The downside: airplane mode also turns off Wi‑Fi and Bluetooth (on most phones) and needs several taps. Restarting <em>only</em> the cellular radio gives the same effect without that.</p>
+
+  <h2 id="rights">2. What Android lets an app do</h2>
+  <div class="table-wrap">
+  <table>
+    <tr><th>Action</th><th>Normal app</th><th>Shizuku (shell)</th><th>Root</th></tr>
+    <tr><td>Toggle airplane mode</td><td class="no">No (system only since Android 4.2)</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
+    <tr><td>Toggle mobile data</td><td class="no">No (needs MODIFY_PHONE_STATE since Android 5)</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
+    <tr><td>Cellular radio off/on per SIM</td><td class="no">No</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
+    <tr><td>Change allowed network types (e.g. drop 5G for a moment)</td><td class="no">No</td><td class="yes">Yes (Android 12+ API)</td><td class="yes">Yes</td></tr>
+    <tr><td>Tell Android “this network is bad, re-check it”</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
+  </table>
+  </div>
+  <p>Why Shizuku works: the shell user's manifest in Android's source grants <code>MODIFY_PHONE_STATE</code>, <code>READ_PRIVILEGED_PHONE_STATE</code> and <code>WRITE_SECURE_SETTINGS</code>. Shizuku runs a small server as that user and lets an approved app make system calls through it.</p>
+  <h3>Things that look useful but are not</h3>
+  <ul>
+    <li><code>cmd phone restart-modem</code> — only works as root <em>and</em> on debug (non-retail) builds.</li>
+    <li><code>service call phone &lt;number&gt;</code> — the numbers change between Android versions and phone makers, so it breaks easily. The app instead asks the phone's own <code>ITelephony</code> class for the method by name.</li>
+    <li>Settings “Internet” panel (Android 10+) — works without rights, but it is a screen, and the goal is no UI.</li>
+  </ul>
+
+  <h2 id="reset">3. How the one-tap reset works</h2>
+  <p>Three ways to tap: the <strong>app icon</strong> (no screen opens), the <strong>Quick Settings tile</strong> “Net Reset”, or the <strong>Reset network</strong> button on the 5G notification. Each tap runs:</p>
+  <ol>
+    <li><strong>Shizuku</strong> running and allowed? → call <code>ITelephony.setRadioForSubscriber(subId, false)</code> for each SIM, wait 2.5 s, then <code>…(subId, true)</code>.</li>
+    <li>Otherwise <strong>root</strong> available? → run the same code as root: <code>su -c "CLASSPATH=&lt;app apk&gt; app_process /system/bin …RootMain cycle &lt;SIM ids&gt;"</code>.</li>
+    <li>If the radio call is refused → <strong>5G nudge</strong> (Android 12+): remove 5G from the allowed network types for 3 s, then put back the exact old setting. The modem drops and re-adds 5G.</li>
+    <li>Neither Shizuku nor root → <strong>soft refresh</strong>: <code>ConnectivityManager.reportNetworkConnectivity(network, false)</code>, which makes Android re-check the network. Weak, but needs no rights. A message says so.</li>
+  </ol>
+  <p>Afterwards the app waits (up to 20 s) for mobile data to reconnect and shows “Mobile network reset ✓”.</p>
+  <pre><code>// Shared by the Shizuku and root paths (PrivOps.kt, simplified)
+val telephony = ITelephony.Stub.asInterface(phoneBinder)   // by reflection
+try {
+  for (sub in sims) telephony.setRadioForSubscriber(sub, false)
+  Thread.sleep(2500)
+} finally {
+  for (sub in sims) telephony.setRadioForSubscriber(sub, true)  // always back on
+}</code></pre>
+
+  <h2 id="versions">4. What runs on which Android version</h2>
+  <div class="table-wrap">
+  <table>
+    <tr><th>Android</th><th>Reset with Shizuku / root</th><th>Getting Shizuku started</th><th>5G status listener</th></tr>
+    <tr><td>10</td><td>Radio off/on</td><td>Needs a PC (adb) once after each reboot</td><td><code>PhoneStateListener</code></td></tr>
+    <tr><td>11</td><td>Radio off/on</td><td>Wireless debugging on the phone itself, no PC</td><td><code>PhoneStateListener</code></td></tr>
+    <tr><td>12 – 13</td><td>Radio off/on, fallback 5G nudge</td><td>Wireless debugging</td><td><code>TelephonyCallback</code></td></tr>
+    <tr><td>14 – 16+</td><td>Same (radio power goes through Android's “user” reason internally)</td><td>Wireless debugging</td><td><code>TelephonyCallback</code>; notification uses foreground type <code>specialUse</code></td></tr>
+  </table>
+  </div>
+  <p>With root, Shizuku is not needed at all and nothing has to be started after a reboot.</p>
+
+  <h2 id="fiveg">5. The 5G Unlimited notification</h2>
+  <h3>Where *#*#4636#*#* gets its values</h3>
+  <p>The “Phone info” screen reads two <em>hidden</em> methods of <code>android.telephony.ServiceState</code>:</p>
+  <div class="table-wrap">
+  <table>
+    <tr><th>4636 label</th><th>Method</th><th>Values</th></tr>
+    <tr><td>NR State (NSA)</td><td><code>getNrState()</code></td><td>0 NONE · 1 RESTRICTED · 2 NOT_RESTRICTED · <strong>3 CONNECTED</strong></td></tr>
+    <tr><td>NR Frequency</td><td><code>getNrFrequencyRange()</code></td><td>0 UNKNOWN · 1 LOW (&lt;1 GHz) · 2 MID (1–3 GHz) · <strong>3 HIGH (3–6 GHz)</strong> · 4 MMWAVE (&gt;6 GHz)</td></tr>
+  </table>
+  </div>
+  <p><strong>Rule used:</strong> NR State = CONNECTED <em>and</em> NR Frequency = HIGH → “SIM n: 5G Unlimited activated”. SIMs that don't match are left out of the notification.</p>
+  <h3>How the app reads them</h3>
+  <ul>
+    <li>One listener per active SIM (<code>TelephonyManager.createForSubscriptionId</code>). It re-registers when SIMs change.</li>
+    <li>On current Android, <code>ServiceState.toString()</code> hides both values on retail phones (prints <code>****</code> / UNKNOWN), so reading the text does not work. The app calls the two hidden methods directly by reflection, after lifting Android's hidden-API block with the open-source <a href="https://github.com/LSPosed/AndroidHiddenApiBypass">HiddenApiBypass</a> library.</li>
+    <li>Android removes only cell location from the service state it sends to apps. NR state and NR frequency stay, so <strong>no location permission</strong> is needed. Only “Phone” permission (to list SIMs) and notifications.</li>
+  </ul>
+  <h3>Limits</h3>
+  <ul>
+    <li><strong>Second SIM:</strong> with two SIMs, usually only the mobile-data SIM carries 5G data, so the other SIM rarely shows CONNECTED.</li>
+    <li><strong>5G SA (standalone):</strong> “NR State (NSA)” is about non-standalone 5G. On SA networks it can stay NONE even when you are on 5G, so the rule would not match. If your carrier uses SA, the rule can be extended.</li>
+    <li>Some phones never fill NR Frequency (4636 shows UNKNOWN too). Then the rule cannot match on that phone.</li>
+    <li>The public, no-reflection signal is <code>TelephonyDisplayInfo</code> (the “5G” / “5G+” icon), but it does not tell the band, so it cannot check “HIGH”.</li>
+  </ul>
+
+  <h2 id="setup">6. Setup</h2>
+  <ol>
+    <li>Install the APK (<code>adb install -r app-debug.apk</code>) and tap the icon once. Allow <em>Phone</em> and <em>Notifications</em>. The 5G notification appears.</li>
+    <li>Install <a href="https://github.com/RikkaApps/Shizuku/releases">Shizuku</a>. In it, follow “Start via Wireless debugging” (Developer options → Wireless debugging → pair). Android 10 needs a PC instead.</li>
+    <li>Tap the Net One Tap icon again and allow it in Shizuku's dialog.</li>
+    <li>Optional: pull down Quick Settings → edit → add the “Net Reset” tile.</li>
+    <li>After a phone restart, open Shizuku and tap Start again (not needed with root).</li>
+  </ol>
+
+  <h2 id="safety">7. Safety and limits</h2>
+  <ul>
+    <li>The radio is always switched back on, even if something fails in between.</li>
+    <li>The reset is skipped during a phone call.</li>
+    <li>Airplane mode, Wi‑Fi, Bluetooth and the mobile data switch are never changed.</li>
+    <li>If signal ever does not come back, toggle airplane mode once or restart the phone.</li>
+    <li>A reset only helps when the problem is on the phone ↔ tower link. It can't fix a slow carrier network or a busy website.</li>
+  </ul>
+
+  <h2 id="sources">8. Sources</h2>
+  <ul>
+    <li><a href="https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/packages/Shell/AndroidManifest.xml">AOSP: Shell app manifest (shell permissions)</a></li>
+    <li><a href="https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/telephony/java/com/android/internal/telephony/ITelephony.aidl">AOSP: ITelephony.aidl (setRadioForSubscriber, setAllowedNetworkTypesForReason)</a></li>
+    <li><a href="https://android.googlesource.com/platform/packages/services/Telephony/+/refs/heads/main/src/com/android/phone/TelephonyShellCommand.java">AOSP: TelephonyShellCommand (<code>cmd phone</code>, restart-modem rules)</a></li>
+    <li><a href="https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/telephony/java/android/telephony/ServiceState.java">AOSP: ServiceState (getNrFrequencyRange, masked toString)</a></li>
+    <li><a href="https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/telephony/java/android/telephony/NetworkRegistrationInfo.java">AOSP: NetworkRegistrationInfo (NR state values)</a></li>
+    <li><a href="https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/services/core/java/com/android/server/TelephonyRegistry.java">AOSP: TelephonyRegistry (what apps receive, permissions)</a></li>
+    <li><a href="https://source.android.com/docs/core/connect/acts-5g-testing">Android: 5G detection with TelephonyDisplayInfo</a></li>
+    <li><a href="https://developer.android.com/reference/android/net/ConnectivityManager#reportNetworkConnectivity(android.net.Network,%20boolean)">Android: ConnectivityManager.reportNetworkConnectivity</a></li>
+    <li><a href="https://github.com/RikkaApps/Shizuku-API">Shizuku API (ShizukuBinderWrapper)</a></li>
+    <li><a href="https://github.com/LSPosed/AndroidHiddenApiBypass">AndroidHiddenApiBypass</a></li>
+  </ul>
+
+  <footer>Net One Tap · research notes, October 2026.</footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="app_name">Net One Tap</string>
+  <string name="tile_label">Net Reset</string>
+
+  <string name="channel_name">5G status</string>
+  <string name="channel_desc">Shows when a SIM is on 5G Unlimited</string>
+
+  <string name="notif_active">5G Unlimited activated</string>
+  <string name="notif_sim_line">SIM %1$d: 5G Unlimited activated</string>
+  <string name="notif_inactive">5G Unlimited: not active</string>
+  <string name="notif_need_phone_perm">Open Net One Tap once to allow phone access</string>
+  <string name="notif_unsupported">This phone does not expose the 5G band to apps</string>
+  <string name="notif_action_reset">Reset network</string>
+
+  <string name="reset_started">Resetting mobile network…</string>
+  <string name="reset_busy">Reset already running</string>
+  <string name="reset_in_call">On a call — reset skipped</string>
+  <string name="reset_done">Mobile network reset ✓</string>
+  <string name="reset_radio_back">Radio restarted — waiting for signal</string>
+  <string name="reset_failed">Reset failed: %1$s</string>
+  <string name="reset_no_privilege">Soft refresh only. Start Shizuku (or root) for a real reset.</string>
+  <string name="need_notifications">Allow notifications to see 5G status</string>
+</resources>
