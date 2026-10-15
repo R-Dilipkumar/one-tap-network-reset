@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Net One Tap Research</title>
+<title>One Tap Network Reset</title>
 <meta name="description" content="How to reset a stuck mobile connection on Android without airplane mode, and how to show 5G NR state per SIM.">
 <style>
   :root {
@@ -89,9 +89,9 @@
 </head>
 <body>
 <main>
-  <h1>Net One Tap — research</h1>
+  <h1>One Tap Network Reset — research</h1>
   <p class="lead">A small Kotlin Android app with two jobs: (1) one tap resets a stuck mobile connection, the way airplane mode does, but without airplane mode or the mobile data switch; (2) a notification that says <strong>“SIM n: 5G Unlimited activated”</strong> when that SIM is on high-band 5G.</p>
-  <p>Code: <a href="https://github.com/R-Dilipkumar/Network_One_Tap">github.com/R-Dilipkumar/Network_One_Tap</a></p>
+  <p>Code: <a href="https://github.com/R-Dilipkumar/one-tap-network-reset">github.com/R-Dilipkumar/one-tap-network-reset</a> · <a href="https://github.com/R-Dilipkumar/one-tap-network-reset/releases/latest">Download APK</a></p>
 
   <div class="card">
     <strong>Short answer.</strong> A normal app is not allowed to restart the phone's cellular radio. The <em>shell</em> user (what ADB runs as) is. So the app uses <strong>Shizuku</strong> (shell rights, no root) or <strong>root</strong> to turn the cellular radio off and back on for each SIM. Wi‑Fi and Bluetooth stay on. With neither, it can only do a weak “soft refresh”.
@@ -226,7 +226,7 @@ try {
     <li><a href="https://github.com/LSPosed/AndroidHiddenApiBypass">AndroidHiddenApiBypass</a></li>
   </ul>
 
-  <footer>Net One Tap · research notes, October 2026.</footer>
+  <footer>One Tap Network Reset (app name: Net One Tap) · research notes, October 2026.</footer>
 </main>
 </body>
 </html>
