@@ -53,3 +53,7 @@ adb logcat -s NetOneTap
 ```
 
 If signal ever does not come back after a reset, toggle airplane mode once or restart the phone.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
