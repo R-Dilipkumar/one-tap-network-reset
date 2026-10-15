@@ -7,6 +7,12 @@ Small Android app (Kotlin, Android 10+):
 
 Research and details: **https://r-dilipkumar.github.io/Network_One_Tap/**
 
+## Download
+
+Get the latest APK from [Releases](https://github.com/R-Dilipkumar/Network_One_Tap/releases/latest).
+
+Tested on POCO X7 Pro (Android 16, HyperOS 3, Airtel 5G NSA).
+
 ## How the reset gets permission
 
 A normal app cannot restart the radio. The app uses, in order:
@@ -33,7 +39,10 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 1. Tap **Net One Tap** once. Allow *Phone* and *Notifications*.
 2. Install Shizuku and start it (Wireless debugging). Tap Net One Tap again and allow it in Shizuku.
-3. Optional: add the **Net Reset** tile in Quick Settings.
+3. Xiaomi / POCO / Redmi: also turn on **USB debugging (Security settings)** in Developer options, or the reset may be blocked.
+4. Optional: add the **Net Reset** tile in Quick Settings.
+
+If the phone hides the SIM list from apps, the notification watches the mobile-data SIM only.
 
 Ways to reset: app icon, Quick Settings tile, or the **Reset network** button on the notification.
 
