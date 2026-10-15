@@ -14,6 +14,11 @@ import com.rdilip.netonetap.priv.PrivOps
 import com.rdilip.netonetap.priv.PrivOps.TAG
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /**
  * One-tap reset. Tries, in order:
@@ -52,8 +57,15 @@ object ResetEngine {
     val subs = Sims.active(app).map { it.subscriptionId }.toIntArray()
 
     val result = when {
-      ShizukuHelper.isInstalled(app) && ShizukuHelper.awaitBinder(1500) &&
-        ShizukuHelper.hasPermission() -> {
+      ShizukuHelper.isInstalled(app) && ShizukuHelper.awaitBinder(1500) -> {
+        if (!ShizukuHelper.hasPermission()) {
+          main.post {
+            ShizukuHelper.requestPermission { granted ->
+              if (granted) runAsync(app) else toast(app, app.getString(R.string.reset_no_privilege))
+            }
+          }
+          return
+        }
         toast(app, app.getString(R.string.reset_started))
         "shizuku: " + PrivOps.cycle(PrivOps.telephony(ShizukuHelper.phoneBinder()), subs)
       }
@@ -102,9 +114,34 @@ object ResetEngine {
   }
 
   private fun softRefresh(app: Context) {
-    val cm = app.getSystemService(ConnectivityManager::class.java) ?: return
-    cm.activeNetwork?.let { cm.reportNetworkConnectivity(it, false) }
-    Log.i(TAG, "soft refresh: reported active network as bad")
+    try {
+      val cm = app.getSystemService(ConnectivityManager::class.java) ?: return
+      cm.activeNetwork?.let { net ->
+        cm.reportNetworkConnectivity(net, false)
+        Thread.sleep(300)
+        cm.reportNetworkConnectivity(net, true)
+      }
+
+      val latch = CountDownLatch(1)
+      val req = NetworkRequest.Builder()
+        .addTransportType(NetworkCapabilities.TRANSPORT_CELLULAR)
+        .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        .build()
+      val cb = object : ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: Network) {
+          cm.reportNetworkConnectivity(network, false)
+          latch.countDown()
+        }
+      }
+      cm.requestNetwork(req, cb)
+      latch.await(2, TimeUnit.SECONDS)
+      cm.unregisterNetworkCallback(cb)
+      Log.i(TAG, "soft refresh: re-evaluated and re-requested cellular network")
+    } catch (e: SecurityException) {
+      Log.w(TAG, "soft refresh missing permission: ${e.message}")
+    } catch (e: Exception) {
+      Log.w(TAG, "soft refresh error: ${e.message}")
+    }
   }
 
   private fun toast(app: Context, text: String) {

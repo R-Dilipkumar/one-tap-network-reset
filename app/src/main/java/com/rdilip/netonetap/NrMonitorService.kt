@@ -77,10 +77,18 @@ class NrMonitorService : Service() {
   private fun registerSims() {
     unregisterSims()
     val base = getSystemService(TelephonyManager::class.java) ?: return
-    for (info in Sims.active(this)) {
-      val slot = info.simSlotIndex
-      val tm = base.createForSubscriptionId(info.subscriptionId)
-      val onState = { ss: ServiceState -> onServiceState(info.subscriptionId, slot, ss) }
+    var sims = Sims.active(this).map { it.subscriptionId to it.simSlotIndex }
+    if (sims.isEmpty()) {
+      // Some builds deny the SIM list. Fall back to the mobile-data SIM, which needs no permission.
+      val dataSub = SubscriptionManager.getDefaultDataSubscriptionId()
+      if (dataSub != SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+        sims = listOf(dataSub to SubscriptionManager.getSlotIndex(dataSub).coerceAtLeast(0))
+      }
+    }
+    Log.i(TAG, "Watching SIMs (subId to slot): $sims")
+    for ((subId, slot) in sims) {
+      val tm = base.createForSubscriptionId(subId)
+      val onState = { ss: ServiceState -> onServiceState(subId, slot, ss) }
       val listener: Any = if (Build.VERSION.SDK_INT >= 31) {
         val cb = object : TelephonyCallback(), TelephonyCallback.ServiceStateListener {
           override fun onServiceStateChanged(serviceState: ServiceState) = onState(serviceState)
